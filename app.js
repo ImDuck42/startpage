@@ -308,7 +308,7 @@ class ShortcutsManager {
                     e.preventDefault();
                     this.openModal(index);
                 } else {
-                    window.open(state.shortcuts[index].url, '_blank');
+                    window.location.href = state.shortcuts[index].url;
                 }
             }
         };
@@ -403,7 +403,7 @@ class SearchEngineManager {
             ? engine.url.replace('%s', encodeURIComponent(query))
             : engine.url + encodeURIComponent(query);
 
-        window.open(url, '_blank');
+        window.location.href = url;
     }
 
     openModal() {
