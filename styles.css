@@ -104,11 +104,17 @@ button {
 /* ── Top bar ────────────────────────────────────────────── */
 .top-bar {
   position : fixed;
-  top      : 20px;
-  right    : 20px;
+  top      : 10px;
+  right    : 10px;
   z-index  : 10;
   display  : flex;
   gap      : 6px;
+
+  button {
+    opacity    : 0.5;
+    max-width  : 25px;
+    max-height : 25px;
+  }
 }
 
 

@@ -223,7 +223,7 @@ export default {
             .notes-preview-box h3,
             .notes-preview-box h4 {
                 color: var(--accent);
-                margin: 12px 0 6px 0;
+                margin: 0 0 6px 0;
             }
             .notes-preview-box h1 { font-size: 1.25rem; }
             .notes-preview-box h2 { font-size: 1.15rem; }
