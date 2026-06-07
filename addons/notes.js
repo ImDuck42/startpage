@@ -24,8 +24,9 @@ export default {
         const load  = () => ctx.storage.get('notes') ?? [];
         const save  = (notes) => ctx.storage.set('notes', notes);
 
-        let   notes        = load();
-        let   activeIndex  = 0;
+        let   notes         = load();
+        const leftmostIndex = notes.findIndex(note => note.pinned);
+        let   activeIndex   = leftmostIndex !== -1 ? leftmostIndex : 0;
 
         // ---- Markdown Compilation Selector ----
         const parseMarkdown = (text) => {
