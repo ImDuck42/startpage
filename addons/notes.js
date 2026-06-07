@@ -59,6 +59,7 @@ export default {
                 overflow-x      : auto;
                 scrollbar-width : none;
                 align-items     : flex-end;
+                backdrop-filter : blur(5px);
             }
 
             .notes-tabs::-webkit-scrollbar { display: none; }
@@ -82,11 +83,11 @@ export default {
             }
 
             .notes-tab.active {
-                background : rgba(255,255,255,0.05) !important;
+                background : rgba(255,255,255,0.075) !important;
                 border-color: var(--accent) var(--accent) transparent var(--accent);
                 border-bottom: 1px solid rgba(255,255,255,0.05); /* Masks the body top-border segment */
                 color      : #fff;
-                height     : 29px; /* Slightly overlaps the body top border */
+                height     : 30px;
             }
 
             .notes-tab .tab-close {
