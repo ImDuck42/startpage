@@ -1,584 +1,524 @@
-// ========== STORAGE KEYS ==========
-const STORAGE_KEYS = {
-    SHORTCUTS: 'shortcuts',
-    ENGINES: 'engines',
-    PREFS: 'prefs',
-    BG: 'bg'
+import { AddonManager, ToastManager } from './addon-manager.js';
+
+/* ── Storage keys ───────────────────────────────────────── */
+const KEYS = {
+  shortcuts : 'shortcuts',
+  engines   : 'engines',
+  prefs     : 'prefs',
+  bg        : 'bg',
 };
 
-// ========== DEFAULTS ==========
+/* ── Defaults ───────────────────────────────────────────── */
 const DEFAULTS = {
-    shortcuts: [
-        { name: 'YouTube', url: 'https://youtube.com' },
-        { name: 'Reddit', url: 'https://reddit.com' },
-        { name: 'GitHub', url: 'https://github.com' }
-    ],
-    engines: [
-        { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
-        { name: 'Bing', url: 'https://www.bing.com/search?q=%s' }
-    ],
-    prefs: { showSec: false, use24: true, engIdx: 0 },
-    bg: { type: 'grad', val: '' }
+  shortcuts : [
+    { name: 'YouTube', url: 'https://youtube.com' },
+    { name: 'Reddit',  url: 'https://reddit.com'  },
+    { name: 'GitHub',  url: 'https://github.com'  },
+  ],
+  engines : [
+    { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s'      },
+    { name: 'Bing',       url: 'https://www.bing.com/search?q=%s'  },
+  ],
+  prefs : { showSec: false, use24: true, engIdx: 0, newTab: false },
+  bg    : { type: 'grad', val: '' },
 };
 
-// ========== UTILITY FUNCTIONS ==========
-const Utils = {
-    getFavicon(url) {
-        try {
-            const hostname = new URL(url).hostname;
-            return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-        } catch {
-            return 'https://www.google.com/s2/favicons?domain=google.com';
-        }
-    },
-
-    getStorageData(key, fallback) {
-        try {
-            return JSON.parse(localStorage.getItem(key)) || fallback;
-        } catch {
-            return fallback;
-        }
-    },
-
-    saveStorage(key, data) {
-        localStorage.setItem(key, JSON.stringify(data));
-    },
-
-    isValidUrl(string) {
-        try {
-            new URL(string);
-            return true;
-        } catch {
-            return false;
-        }
+/* ── Utilities ──────────────────────────────────────────── */
+const utils = {
+  favicon(url) {
+    try {
+      return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`;
+    } catch {
+      return 'https://www.google.com/s2/favicons?domain=google.com';
     }
+  },
+
+  load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+    catch { return fallback; }
+  },
+
+  save(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  },
+
+  validUrl(str) {
+    try { new URL(str); return true; }
+    catch { return false; }
+  },
+
+  // Alias shape expected by AddonManager (getStorageData / saveStorage)
+  getStorageData : (key, fb) => utils.load(key, fb),
+  saveStorage    : (key, data) => utils.save(key, data),
 };
 
-// ========== DOM SELECTOR HELPER ==========
-const DOM = {
-    timeDisplay: document.getElementById('timeDisplay'),
-    greeting: document.getElementById('greeting'),
-    shortcutsContainer: document.getElementById('shortcutsContainer'),
-    searchInput: document.getElementById('searchInput'),
-    engineIcon: document.getElementById('engineIcon'),
-    bgOverlay: document.getElementById('bgOverlay'),
-    modals: document.querySelectorAll('.modal'),
-    
-    // Shortcut Modal
-    shortcutModal: document.getElementById('shortcutModal'),
-    shortcutModalTitle: document.getElementById('shortcutModalTitle'),
-    shortcutName: document.getElementById('shortcutName'),
-    shortcutUrl: document.getElementById('shortcutUrl'),
-    shortcutEditIndex: document.getElementById('shortcutEditIndex'),
-    shortcutSaveBtn: document.getElementById('shortcutSaveBtn'),
-    shortcutDeleteBtn: document.getElementById('shortcutDeleteBtn'),
-    
-    // Engine Modal
-    engineModal: document.getElementById('engineModal'),
-    engineList: document.getElementById('engineList'),
-    engineName: document.getElementById('engineName'),
-    engineUrl: document.getElementById('engineUrl'),
-    engineEditIndex: document.getElementById('engineEditIndex'),
-    engineFormTitle: document.getElementById('engineFormTitle'),
-    engineSaveBtn: document.getElementById('engineSaveBtn'),
-    
-    // Settings Modal
-    settingsModal: document.getElementById('settingsModal'),
-    settingShowSeconds: document.getElementById('settingShowSeconds'),
-    setting24Hour: document.getElementById('setting24Hour'),
-    bgUrlInput: document.getElementById('bgUrlInput'),
-    bgFileInput: document.getElementById('bgFileInput'),
-    resetBgBtn: document.getElementById('resetBgBtn'),
-    
-    // Buttons
-    settingsBtn: document.getElementById('settingsBtn'),
-    engineBtn: document.getElementById('engineBtn'),
-    searchGoBtn: document.getElementById('searchGoBtn')
+/* ── DOM references ─────────────────────────────────────── */
+const el = {
+  time     : document.getElementById('timeDisplay'),
+  greeting : document.getElementById('greeting'),
+  grid     : document.getElementById('shortcutsContainer'),
+  search   : document.getElementById('searchInput'),
+  engIcon  : document.getElementById('engineIcon'),
+  bgWrap   : document.getElementById('bgOverlay'),
+  modals   : document.querySelectorAll('.modal'),
+
+  // shortcut modal
+  scModal  : document.getElementById('shortcutModal'),
+  scTitle  : document.getElementById('shortcutModalTitle'),
+  scName   : document.getElementById('shortcutName'),
+  scUrl    : document.getElementById('shortcutUrl'),
+  scIdx    : document.getElementById('shortcutEditIdx'),
+  scSave   : document.getElementById('shortcutSaveBtn'),
+  scDelete : document.getElementById('shortcutDeleteBtn'),
+
+  // engine modal
+  engModal  : document.getElementById('engineModal'),
+  engList   : document.getElementById('engineList'),
+  engName   : document.getElementById('engineName'),
+  engUrl    : document.getElementById('engineUrl'),
+  engIdx    : document.getElementById('engineEditIdx'),
+  engTitle  : document.getElementById('engineFormTitle'),
+  engSave   : document.getElementById('engineSaveBtn'),
+
+  // settings modal
+  settingsModal : document.getElementById('settingsModal'),
+  showSec       : document.getElementById('settingShowSec'),
+  use24         : document.getElementById('setting24hr'),
+  newTab        : document.getElementById('settingNewTab'),
+  bgUrl         : document.getElementById('bgUrlInput'),
+  bgFile        : document.getElementById('bgFileInput'),
+  resetBg       : document.getElementById('resetBgBtn'),
+
+  // toolbar
+  settingsBtn : document.getElementById('settingsBtn'),
+  addonBtn    : document.getElementById('addonBtn'),
+  engBtn      : document.getElementById('engineBtn'),
+  goBtn       : document.getElementById('searchGoBtn'),
 };
 
-// ========== STATE MANAGER ==========
-class StateManager {
-    constructor() {
-        this.shortcuts = Utils.getStorageData(STORAGE_KEYS.SHORTCUTS, DEFAULTS.shortcuts);
-        this.engines = Utils.getStorageData(STORAGE_KEYS.ENGINES, DEFAULTS.engines);
-        this.prefs = Utils.getStorageData(STORAGE_KEYS.PREFS, DEFAULTS.prefs);
-        this.bgData = Utils.getStorageData(STORAGE_KEYS.BG, DEFAULTS.bg);
-        this.isEditMode = false;
-        this.longPressTimer = null;
+/* ── State ──────────────────────────────────────────────── */
+const state = {
+  shortcuts    : utils.load(KEYS.shortcuts, DEFAULTS.shortcuts),
+  engines      : utils.load(KEYS.engines,   DEFAULTS.engines),
+  prefs        : utils.load(KEYS.prefs,     DEFAULTS.prefs),
+  bg           : utils.load(KEYS.bg,        DEFAULTS.bg),
+  editMode     : false,
+  pressTimer   : null,
+
+  persist() {
+    utils.save(KEYS.shortcuts, this.shortcuts);
+    utils.save(KEYS.engines,   this.engines);
+    utils.save(KEYS.prefs,     this.prefs);
+    utils.save(KEYS.bg,        this.bg);
+  },
+
+  enterEdit() {
+    this.editMode = true;
+    document.body.classList.add('edit-mode');
+    navigator.vibrate?.(50);
+  },
+
+  exitEdit() {
+    this.editMode = false;
+    document.body.classList.remove('edit-mode');
+  },
+};
+
+/* ── Modal manager ──────────────────────────────────────── */
+const modals = {
+  open(name) {
+    document.querySelector(`.modal[data-modal="${name}"]`)?.classList.remove('hidden');
+  },
+  close(name) {
+    document.querySelector(`.modal[data-modal="${name}"]`)?.classList.add('hidden');
+  },
+  initBackdropClose() {
+    el.modals.forEach(modal =>
+      modal.addEventListener('click', evt => {
+        if (evt.target === modal) this.close(modal.dataset.modal);
+      })
+    );
+  },
+};
+
+/* ── Clock ──────────────────────────────────────────────── */
+const clock = {
+  start() {
+    this.tick();
+    setInterval(() => this.tick(), 1000);
+  },
+
+  tick() {
+    const now = new Date();
+    el.greeting.textContent = this.greeting(now.getHours());
+    el.time.textContent     = this.format(now);
+    document.dispatchEvent(new CustomEvent('startpage:tick', { detail: now }));
+  },
+
+  greeting(hour) {
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  },
+
+  format(date) {
+    const mins = String(date.getMinutes()).padStart(2, '0');
+    const secs = String(date.getSeconds()).padStart(2, '0');
+
+    let hours  = date.getHours();
+    let suffix = '';
+
+    if (!state.prefs.use24) {
+      suffix = hours >= 12 ? ' PM' : ' AM';
+      hours  = hours % 12 || 12;
+    } else {
+      hours = String(hours).padStart(2, '0');
     }
 
-    saveAll() {
-        Utils.saveStorage(STORAGE_KEYS.SHORTCUTS, this.shortcuts);
-        Utils.saveStorage(STORAGE_KEYS.ENGINES, this.engines);
-        Utils.saveStorage(STORAGE_KEYS.PREFS, this.prefs);
-        Utils.saveStorage(STORAGE_KEYS.BG, this.bgData);
+    return `${hours}:${mins}${state.prefs.showSec ? `:${secs}` : ''}${suffix}`;
+  },
+};
+
+/* ── Wallpaper ──────────────────────────────────────────── */
+const wallpaper = {
+  init() {
+    el.bgUrl.addEventListener('input', () => this.fromUrl());
+    el.bgFile.addEventListener('change', evt => this.fromFile(evt));
+    el.resetBg.addEventListener('click', () => this.reset());
+  },
+
+  fromUrl() {
+    const url = el.bgUrl.value.trim();
+    if (url && utils.validUrl(url)) {
+      state.bg = { type: 'url', val: url };
+      state.persist();
+      this.apply();
+    }
+  },
+
+  fromFile(evt) {
+    const file = evt.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
+    if (file.size > 4_500_000)           { alert('Image too large (max 4.5 MB).'); return; }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.bg = { type: 'file', val: reader.result };
+      state.persist();
+      this.apply();
+    };
+    reader.readAsDataURL(file);
+  },
+
+  apply() {
+    const { type, val } = state.bg;
+    el.bgWrap.style.background = (type === 'url' || type === 'file') && val
+      ? `url('${val}') center / cover no-repeat`
+      : '';
+  },
+
+  reset() {
+    state.bg = { type: 'grad', val: '' };
+    state.persist();
+    this.apply();
+    el.bgUrl.value  = '';
+    el.bgFile.value = '';
+  },
+};
+
+/* ── Shortcuts ──────────────────────────────────────────── */
+const shortcuts = {
+  init() {
+    el.scSave.addEventListener('click',   () => this.save());
+    el.scDelete.addEventListener('click', () => this.remove());
+  },
+
+  draw() {
+    el.grid.innerHTML = '';
+    state.shortcuts.forEach((sc, idx) => el.grid.appendChild(this.tile(sc, idx)));
+    el.grid.appendChild(this.addTile());
+  },
+
+  tile(sc, idx) {
+    const div = document.createElement('div');
+    div.className = 'shortcut';
+    div.title     = `${sc.name} (${sc.url})`;
+    div.innerHTML = `
+      <div class="shortcut-icon">
+        <img src="${utils.favicon(sc.url)}" loading="lazy" alt="${sc.name}">
+      </div>
+      <span class="shortcut-label">${sc.name}</span>
+    `;
+    this.bindTile(div, idx);
+    return div;
+  },
+
+  addTile() {
+    const div = document.createElement('div');
+    div.className = 'shortcut';
+    div.title     = 'Add a new shortcut';
+    div.innerHTML = `
+      <div class="shortcut-icon">
+        <span class="material-symbols-outlined" style="font-size:1.4rem">add</span>
+      </div>
+      <span class="shortcut-label">Add</span>
+    `;
+    div.addEventListener('click', () => this.openModal(-1));
+    return div;
+  },
+
+  bindTile(div, idx) {
+    const startPress = () => {
+      if (state.editMode) return;
+      state.pressTimer = setTimeout(() => {
+        state.enterEdit();
+        this.listenForEditExit();
+      }, 800);
+    };
+    const cancelPress = () => clearTimeout(state.pressTimer);
+    const onClick = evt => {
+      if (state.editMode) {
+        evt.preventDefault();
+        this.openModal(idx);
+      } else {
+        evt.preventDefault();
+        this.navigate(state.shortcuts[idx].url);
+      }
+    };
+
+    div.addEventListener('touchstart', startPress,   { passive: true });
+    div.addEventListener('touchend',   cancelPress);
+    div.addEventListener('mousedown',  startPress);
+    div.addEventListener('mouseup',    cancelPress);
+    div.addEventListener('mouseleave', cancelPress);
+    div.addEventListener('click',      onClick);
+  },
+
+  listenForEditExit() {
+    const handler = evt => {
+      if (!evt.target.closest('.shortcut') && !evt.target.closest('.modal')) {
+        state.exitEdit();
+        document.removeEventListener('click', handler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', handler), 100);
+  },
+
+  navigate(url) {
+    if (state.prefs.newTab) window.open(url, '_blank', 'noopener,noreferrer');
+    else                    window.location.href = url;
+  },
+
+  openModal(idx) {
+    el.scIdx.value = idx;
+
+    if (idx > -1) {
+      el.scName.value        = state.shortcuts[idx].name;
+      el.scUrl.value         = state.shortcuts[idx].url;
+      el.scTitle.textContent = 'Edit Shortcut';
+      el.scDelete.classList.remove('hidden');
+    } else {
+      el.scName.value        = '';
+      el.scUrl.value         = '';
+      el.scTitle.textContent = 'Add Shortcut';
+      el.scDelete.classList.add('hidden');
     }
 
-    enterEditMode() {
-        this.isEditMode = true;
-        document.body.classList.add('edit-mode');
-        if (navigator.vibrate) navigator.vibrate(50);
-    }
+    modals.open('shortcut');
+  },
 
-    exitEditMode() {
-        this.isEditMode = false;
-        document.body.classList.remove('edit-mode');
-    }
-}
+  save() {
+    const name = el.scName.value.trim();
+    const url  = el.scUrl.value.trim();
+    if (!name || !url) return;
 
-const state = new StateManager();
+    const idx  = parseInt(el.scIdx.value);
+    const item = { name, url: utils.validUrl(url) ? url : `https://${url}` };
 
-// ========== CLOCK MODULE ==========
-class ClockManager {
-    constructor() {
-        this.tick = this.tick.bind(this);
-    }
+    if (idx > -1) state.shortcuts[idx] = item;
+    else          state.shortcuts.push(item);
 
-    start() {
-        this.tick();
-        setInterval(this.tick, 1000);
-    }
+    state.persist();
+    this.draw();
+    modals.close('shortcut');
+  },
 
-    tick() {
-        const now = new Date();
-        const greeting = this.getGreeting(now.getHours());
-        const time = this.formatTime(now);
-        
-        DOM.greeting.innerText = greeting;
-        DOM.timeDisplay.innerText = time;
-    }
+  remove() {
+    state.shortcuts.splice(parseInt(el.scIdx.value), 1);
+    state.persist();
+    this.draw();
+    modals.close('shortcut');
+  },
+};
 
-    getGreeting(hour) {
-        if (hour < 12) return "Good Morning";
-        if (hour < 18) return "Good Afternoon";
-        return "Good Evening";
-    }
+/* ── Search engines ─────────────────────────────────────── */
+const engines = {
+  init() {
+    el.engBtn.addEventListener('click',   () => this.openModal());
+    el.engSave.addEventListener('click',  () => this.save());
+    el.goBtn.addEventListener('click',    () => this.search());
+    el.search.addEventListener('keydown', evt => { if (evt.key === 'Enter') this.search(); });
+  },
 
-    formatTime(date) {
-        let hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
+  current() {
+    return state.engines[state.prefs.engIdx] ?? state.engines[0];
+  },
 
-        let suffix = '';
-        if (!state.prefs.use24) {
-            suffix = hours >= 12 ? ' PM' : ' AM';
-            hours = hours % 12 || 12;
-        } else {
-            hours = String(hours).padStart(2, '0');
-        }
+  syncIcon() {
+    const eng = this.current();
+    el.engIcon.src   = utils.favicon(eng.url);
+    el.engBtn.title  = `Active: ${eng.name}. Click to change.`;
+  },
 
-        let time = `${hours}:${minutes}`;
-        if (state.prefs.showSec) time += `:${seconds}`;
-        
-        return time + suffix;
-    }
-}
+  search() {
+    const query = el.search.value.trim();
+    if (!query) return;
 
-// ========== WALLPAPER MODULE ==========
-class WallpaperManager {
-    constructor() {
-        this.attachListeners();
-    }
+    const eng = this.current();
+    const url = eng.url.includes('%s')
+      ? eng.url.replace('%s', encodeURIComponent(query))
+      : eng.url + encodeURIComponent(query);
 
-    attachListeners() {
-        DOM.bgUrlInput.addEventListener('input', () => this.handleUrlInput());
-        DOM.bgFileInput.addEventListener('change', (e) => this.handleFileInput(e));
-        DOM.resetBgBtn.addEventListener('click', () => this.reset());
-    }
+    if (state.prefs.newTab) window.open(url, '_blank', 'noopener,noreferrer');
+    else                    window.location.href = url;
+  },
 
-    handleUrlInput() {
-        const url = DOM.bgUrlInput.value.trim();
-        if (url && Utils.isValidUrl(url)) {
-            state.bgData = { type: 'url', val: url };
-            state.saveAll();
-            this.apply();
-        }
-    }
+  openModal() {
+    this.drawList();
+    this.resetForm();
+    modals.open('engine');
+  },
 
-    handleFileInput(event) {
-        const file = event.target.files?.[0];
-        if (!file) return;
+  resetForm() {
+    el.engIdx.value        = '-1';
+    el.engName.value       = '';
+    el.engUrl.value        = '';
+    el.engTitle.textContent = 'Add New Engine';
+    el.engSave.textContent  = 'Add Engine';
+  },
 
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file (PNG, JPG, etc).');
-            return;
-        }
+  drawList() {
+    el.engList.innerHTML = '';
 
-        if (file.size > 4500000) {
-            alert('Image too large (max 4.5MB)');
-            return;
-        }
+    state.engines.forEach((eng, idx) => {
+      const item = document.createElement('div');
+      item.className = `engine-item${idx === state.prefs.engIdx ? ' active' : ''}`;
+      item.title     = `${eng.name} — click to set active`;
+      item.innerHTML = `
+        <div class="engine-info">
+          <img src="${utils.favicon(eng.url)}" alt="${eng.name}">
+          <span class="engine-name">${eng.name}</span>
+        </div>
+        <div class="engine-actions">
+          <button class="action-btn edit-btn" aria-label="Edit" title="Edit engine">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="action-btn delete-btn" aria-label="Delete" title="Remove engine">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      `;
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            state.bgData = { type: 'file', val: reader.result };
-            state.saveAll();
-            this.apply();
-        };
-        reader.readAsDataURL(file);
-    }
+      item.addEventListener('click', evt => {
+        if (evt.target.closest('.action-btn')) return;
+        state.prefs.engIdx = idx;
+        state.persist();
+        this.syncIcon();
+        this.drawList();
+        modals.close('engine');
+        el.search.focus();
+      });
 
-    apply() {
-        if ((state.bgData.type === 'url' || state.bgData.type === 'file') && state.bgData.val) {
-            DOM.bgOverlay.style.background = `url('${state.bgData.val}') center/cover no-repeat`;
-        } else {
-            DOM.bgOverlay.style.background = '';
-        }
-    }
+      item.querySelector('.edit-btn').addEventListener('click', () => {
+        el.engIdx.value         = idx;
+        el.engName.value        = eng.name;
+        el.engUrl.value         = eng.url;
+        el.engTitle.textContent = 'Edit Engine';
+        el.engSave.textContent  = 'Save Changes';
+      });
 
-    reset() {
-        state.bgData = { type: 'grad', val: '' };
-        state.saveAll();
-        this.apply();
-        DOM.bgUrlInput.value = '';
-        DOM.bgFileInput.value = '';
-    }
-}
-
-// ========== SHORTCUTS MODULE ==========
-class ShortcutsManager {
-    constructor() {
-        this.attachListeners();
-    }
-
-    attachListeners() {
-        DOM.shortcutSaveBtn.addEventListener('click', () => this.save());
-        DOM.shortcutDeleteBtn.addEventListener('click', () => this.delete());
-    }
-
-    draw() {
-        DOM.shortcutsContainer.innerHTML = '';
-
-        state.shortcuts.forEach((shortcut, index) => {
-            const element = this.createShortcutElement(shortcut, index);
-            DOM.shortcutsContainer.appendChild(element);
-        });
-
-        // Add "Add" tile
-        const addTile = this.createAddTile();
-        DOM.shortcutsContainer.appendChild(addTile);
-    }
-
-    createShortcutElement(shortcut, index) {
-        const div = document.createElement('div');
-        div.className = 'shortcut';
-        div.innerHTML = `
-            <div class="shortcut-icon">
-                <img src="${Utils.getFavicon(shortcut.url)}" loading="lazy" alt="${shortcut.name}">
-            </div>
-            <span class="shortcut-label">${shortcut.name}</span>
-        `;
-
-        const handlers = this.createEventHandlers(index);
-        div.addEventListener('touchstart', handlers.hold, { passive: true });
-        div.addEventListener('touchend', handlers.cancel);
-        div.addEventListener('mousedown', handlers.hold);
-        div.addEventListener('mouseup', handlers.cancel);
-        div.addEventListener('mouseleave', handlers.cancel);
-        div.addEventListener('click', handlers.click);
-
-        return div;
-    }
-
-    createAddTile() {
-        const div = document.createElement('div');
-        div.className = 'shortcut add-shortcut';
-        div.innerHTML = `
-            <div class="shortcut-icon">
-                <span class="material-symbols-outlined" style="font-size:1.4rem;">add</span>
-            </div>
-            <span class="shortcut-label">Add</span>
-        `;
-        div.addEventListener('click', () => this.openModal(-1));
-        return div;
-    }
-
-    createEventHandlers(index) {
-        return {
-            hold: () => {
-                if (state.isEditMode) return;
-                state.longPressTimer = setTimeout(() => {
-                    state.enterEditMode();
-                    this.addOutsideClickListener();
-                }, 800);
-            },
-            cancel: () => clearTimeout(state.longPressTimer),
-            click: (e) => {
-                if (state.isEditMode) {
-                    e.preventDefault();
-                    this.openModal(index);
-                } else {
-                    window.location.href = state.shortcuts[index].url;
-                }
-            }
-        };
-    }
-
-    addOutsideClickListener() {
-        const handler = (e) => {
-            if (!e.target.closest('.shortcut') && !e.target.closest('.modal')) {
-                state.exitEditMode();
-                document.removeEventListener('click', handler);
-            }
-        };
-        setTimeout(() => document.addEventListener('click', handler), 100);
-    }
-
-    openModal(index) {
-        DOM.shortcutEditIndex.value = index;
-        
-        if (index > -1) {
-            DOM.shortcutName.value = state.shortcuts[index].name;
-            DOM.shortcutUrl.value = state.shortcuts[index].url;
-            DOM.shortcutModalTitle.innerText = 'Edit Shortcut';
-            DOM.shortcutDeleteBtn.classList.remove('hidden');
-        } else {
-            DOM.shortcutName.value = '';
-            DOM.shortcutUrl.value = '';
-            DOM.shortcutModalTitle.innerText = 'Add Shortcut';
-            DOM.shortcutDeleteBtn.classList.add('hidden');
-        }
-        
-        ModalManager.open('shortcut');
-    }
-
-    save() {
-        const name = DOM.shortcutName.value.trim();
-        const url = DOM.shortcutUrl.value.trim();
-        
-        if (!name || !url) return;
-
-        const item = {
-            name,
-            url: Utils.isValidUrl(url) ? url : `https://${url}`
-        };
-
-        const index = parseInt(DOM.shortcutEditIndex.value);
-        if (index > -1) {
-            state.shortcuts[index] = item;
-        } else {
-            state.shortcuts.push(item);
-        }
-
-        state.saveAll();
-        this.draw();
-        ModalManager.close('shortcut');
-    }
-
-    delete() {
-        const index = parseInt(DOM.shortcutEditIndex.value);
-        state.shortcuts.splice(index, 1);
-        state.saveAll();
-        this.draw();
-        ModalManager.close('shortcut');
-    }
-}
-
-// ========== SEARCH ENGINE MODULE ==========
-class SearchEngineManager {
-    constructor() {
-        this.attachListeners();
-    }
-
-    attachListeners() {
-        DOM.engineBtn.addEventListener('click', () => this.openModal());
-        DOM.engineSaveBtn.addEventListener('click', () => this.save());
-        DOM.searchGoBtn.addEventListener('click', () => this.search());
-        DOM.searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.search();
-        });
-    }
-
-    setCurrentEngine() {
-        const engine = state.engines[state.prefs.engIdx] || state.engines[0];
-        DOM.engineIcon.src = Utils.getFavicon(engine.url);
-    }
-
-    search() {
-        const query = DOM.searchInput.value.trim();
-        if (!query) return;
-
-        const engine = state.engines[state.prefs.engIdx] || state.engines[0];
-        const url = engine.url.includes('%s')
-            ? engine.url.replace('%s', encodeURIComponent(query))
-            : engine.url + encodeURIComponent(query);
-
-        window.location.href = url;
-    }
-
-    openModal() {
-        this.drawEngineList();
+      item.querySelector('.delete-btn').addEventListener('click', () => {
+        if (state.engines.length <= 1) return;
+        state.engines.splice(idx, 1);
+        if (state.prefs.engIdx >= idx) state.prefs.engIdx = 0;
+        state.persist();
+        this.syncIcon();
+        this.drawList();
         this.resetForm();
-        ModalManager.open('engine');
-    }
+      });
 
-    resetForm() {
-        DOM.engineEditIndex.value = '-1';
-        DOM.engineName.value = '';
-        DOM.engineUrl.value = '';
-        DOM.engineFormTitle.innerText = 'Add New Engine';
-        DOM.engineSaveBtn.innerText = 'Add Engine';
-    }
-
-    drawEngineList() {
-        DOM.engineList.innerHTML = '';
-
-        state.engines.forEach((engine, index) => {
-            const item = document.createElement('div');
-            item.className = `engine-item ${index === state.prefs.engIdx ? 'active' : ''}`;
-
-            item.innerHTML = `
-                <div class="engine-info">
-                    <img src="${Utils.getFavicon(engine.url)}" alt="${engine.name}">
-                    <span class="engine-name">${engine.name}</span>
-                </div>
-                <div class="engine-actions">
-                    <button class="action-btn edit-btn" aria-label="Edit">
-                        <span class="material-symbols-outlined">edit</span>
-                    </button>
-                    <button class="action-btn delete-btn" aria-label="Delete">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </div>
-            `;
-
-            item.addEventListener('click', (e) => {
-                if (!e.target.closest('.action-btn')) {
-                    state.prefs.engIdx = index;
-                    state.saveAll();
-                    this.setCurrentEngine();
-                    ModalManager.close('engine');
-                    DOM.searchInput.focus();
-                    this.drawEngineList();
-                }
-            });
-
-            item.querySelector('.edit-btn').addEventListener('click', () => {
-                DOM.engineEditIndex.value = index;
-                DOM.engineName.value = engine.name;
-                DOM.engineUrl.value = engine.url;
-                DOM.engineFormTitle.innerText = 'Edit Engine';
-                DOM.engineSaveBtn.innerText = 'Save Changes';
-            });
-
-            item.querySelector('.delete-btn').addEventListener('click', () => {
-                if (state.engines.length <= 1) {
-                    alert('Keep at least one engine.');
-                    return;
-                }
-                if (confirm(`Delete ${engine.name}?`)) {
-                    state.engines.splice(index, 1);
-                    if (state.prefs.engIdx >= index) state.prefs.engIdx = 0;
-                    state.saveAll();
-                    this.setCurrentEngine();
-                    this.drawEngineList();
-                    this.resetForm();
-                }
-            });
-
-            DOM.engineList.appendChild(item);
-        });
-    }
-
-    save() {
-        const name = DOM.engineName.value.trim();
-        const url = DOM.engineUrl.value.trim();
-
-        if (!name || !url) return;
-
-        const index = parseInt(DOM.engineEditIndex.value);
-        if (index > -1) {
-            state.engines[index] = { name, url };
-        } else {
-            state.engines.push({ name, url });
-        }
-
-        state.saveAll();
-        this.setCurrentEngine();
-        this.drawEngineList();
-        this.resetForm();
-    }
-}
-
-// ========== SETTINGS MODULE ==========
-class SettingsManager {
-    constructor() {
-        this.attachListeners();
-    }
-
-    attachListeners() {
-        DOM.settingsBtn.addEventListener('click', () => this.openModal());
-        DOM.settingShowSeconds.addEventListener('change', (e) => {
-            state.prefs.showSec = e.target.checked;
-            state.saveAll();
-            clock.tick();
-        });
-        DOM.setting24Hour.addEventListener('change', (e) => {
-            state.prefs.use24 = e.target.checked;
-            state.saveAll();
-            clock.tick();
-        });
-    }
-
-    openModal() {
-        DOM.settingShowSeconds.checked = state.prefs.showSec;
-        DOM.setting24Hour.checked = state.prefs.use24;
-        ModalManager.open('settings');
-    }
-}
-
-// ========== MODAL MANAGER ==========
-class ModalManager {
-    static open(name) {
-        DOM.modals.forEach(m => {
-            if (m.getAttribute('data-modal') === name) {
-                m.classList.remove('hidden');
-            }
-        });
-    }
-
-    static close(name) {
-        const modal = document.querySelector(`.modal[data-modal="${name}"]`);
-        if (modal) modal.classList.add('hidden');
-    }
-
-    static initCloseOnOutsideClick() {
-        DOM.modals.forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.close(modal.getAttribute('data-modal'));
-                }
-            });
-        });
-    }
-}
-
-// ========== GLOBAL EVENT LISTENERS ==========
-function initGlobalListeners() {
-    // Prevent context menu (except on inputs)
-    document.addEventListener('contextmenu', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+      el.engList.appendChild(item);
     });
+  },
 
-    ModalManager.initCloseOnOutsideClick();
-}
+  save() {
+    const name = el.engName.value.trim();
+    const url  = el.engUrl.value.trim();
+    if (!name || !url) return;
 
-// ========== INITIALIZATION ==========
-const clock = new ClockManager();
-const wallpaper = new WallpaperManager();
-const shortcuts = new ShortcutsManager();
-const searchEngine = new SearchEngineManager();
-const settings = new SettingsManager();
+    const idx = parseInt(el.engIdx.value);
+    if (idx > -1) state.engines[idx] = { name, url };
+    else          state.engines.push({ name, url });
 
-function init() {
-    initGlobalListeners();
-    clock.start();
-    wallpaper.apply();
-    searchEngine.setCurrentEngine();
-    shortcuts.draw();
-}
+    state.persist();
+    this.syncIcon();
+    this.drawList();
+    this.resetForm();
+  },
+};
 
-init();
+/* ── Settings ───────────────────────────────────────────── */
+const settings = {
+  init() {
+    el.settingsBtn.addEventListener('click', () => this.open());
+
+    el.showSec.addEventListener('change', evt => {
+      state.prefs.showSec = evt.target.checked;
+      state.persist();
+      clock.tick();
+    });
+    el.use24.addEventListener('change', evt => {
+      state.prefs.use24 = evt.target.checked;
+      state.persist();
+      clock.tick();
+    });
+    el.newTab.addEventListener('change', evt => {
+      state.prefs.newTab = evt.target.checked;
+      state.persist();
+    });
+  },
+
+  open() {
+    el.showSec.checked = state.prefs.showSec;
+    el.use24.checked   = state.prefs.use24;
+    el.newTab.checked  = state.prefs.newTab ?? false;
+    modals.open('settings');
+  },
+};
+
+/* ── Boot ───────────────────────────────────────────────── */
+const addonMgr = new AddonManager(state, utils, modals);
+
+document.addEventListener('contextmenu', evt => {
+  if (evt.target.tagName !== 'INPUT') evt.preventDefault();
+});
+
+document.addEventListener('addon:install-addon', evt => addonMgr.install(evt.detail));
+el.addonBtn.addEventListener('click', () => addonMgr.openModal());
+
+modals.initBackdropClose();
+
+wallpaper.init();
+wallpaper.apply();
+
+shortcuts.init();
+shortcuts.draw();
+
+engines.init();
+engines.syncIcon();
+
+settings.init();
+
+clock.start();
+addonMgr.loadAll();
