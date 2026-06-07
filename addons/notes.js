@@ -59,35 +59,36 @@ export default {
                 overflow-x      : auto;
                 scrollbar-width : none;
                 align-items     : flex-end;
-                backdrop-filter : blur(5px);
             }
 
             .notes-tabs::-webkit-scrollbar { display: none; }
 
             .notes-tab {
-                background    : rgba(255,255,255,0.07);
-                border        : 1px solid rgba(255,255,255,0.12);
-                border-radius : 8px 8px 0 0;
-                color         : rgba(255,255,255,0.6);
-                padding       : 5px 12px;
-                font-size     : 0.75rem;
-                cursor        : pointer;
-                white-space   : nowrap;
-                transition    : all 0.15s ease;
-                display       : flex;
-                align-items   : center;
-                gap           : 6px;
-                user-select   : none;
+                background          : rgba(255,255,255,0.07);
+                border              : 1px solid rgba(255,255,255,0.12);
+                border-radius       : 8px 8px 0 0;
+                color               : rgba(255,255,255,0.6);
+                padding             : 5px 12px;
+                font-size           : 0.75rem;
+                cursor              : pointer;
+                white-space         : nowrap;
+                transition          : all 0.15s ease;
+                display             : flex;
+                align-items         : center;
+                gap                 : 6px;
+                user-select         : none;
                 -webkit-user-select : none;
-                height        : 28px;
+                height              : 28px;
+                backdrop-filter     : blur(2px) !important;
             }
 
             .notes-tab.active {
-                background : rgba(255,255,255,0.075) !important;
+                background : rgba(255,255,255,0.085) !important;
                 border-color: var(--accent) var(--accent) transparent var(--accent);
                 border-bottom: 1px solid rgba(255,255,255,0.05); /* Masks the body top-border segment */
                 color      : #fff;
                 height     : 30px;
+                backdrop-filter: blur(10px) !important;
             }
 
             .notes-tab .tab-close {
